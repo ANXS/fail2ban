@@ -1,0 +1,16 @@
+# file: fail2ban/meta/main.yml
+
+galaxy_info:
+  author: pjan vandaele
+  company: Ansibles
+  description:
+  min_ansible_version: 1.4
+  license: MIT
+  platforms:
+  - name: Ubuntu
+    versions:
+    - all
+  categories:
+  - system
+
+dependencies: []
