@@ -20,9 +20,9 @@ fail2ban_action: "action_"
 fail2ban_auth_log: "/var/log/auth.log"
 
 fail2ban_services:
-  - name: ssh
-    enabled: true
-    port: ssh
-    filter: sshd
-    logpath: /var/log/auth.log
+  - name: "ssh"
+    enabled: "true"
+    port: "ssh"
+    filter: "sshd"
+    logpath: "/var/log/auth.log"
     maxretry: 6

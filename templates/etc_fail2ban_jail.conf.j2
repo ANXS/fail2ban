@@ -105,7 +105,7 @@ protocol = {{service.protocol}}
 {% if service.action is defined %}
 action = %({{service.action}})s
 {% endif %}
-<% if param['banaction'] %>
+{% if service.banaction is defined %}
 banaction = {{service.banaction}}
 {% endif %}
 

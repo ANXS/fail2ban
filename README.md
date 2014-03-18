@@ -30,14 +30,14 @@ For each of the services you wish to protect/put a jail or ban up for, you need 
 
 ```yaml
 fail2ban_services:
-  - name: ssh
-    enabled: true
-    port: ssh
-    filter: sshd
-    logpath: /var/log/auth.log
+  - name: "ssh"
+    enabled: "true"
+    port: "ssh"
+    filter: "sshd"
+    logpath: "/var/log/auth.log"
     maxretry: 6
-    protocol: tcp                       (optional)
-    action: action_                     (optional)
+    protocol: "tcp"                     (optional)
+    action: "action_ "                  (optional)
     banaction: "iptables-multiport"     (optional)
 ```
 

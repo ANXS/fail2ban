@@ -3,7 +3,7 @@
 ###### ssh/dropbear/...
 ```yaml
   - name: ssh
-    enabled: true
+    enabled: "true"
     port: ssh
     filter: sshd
     logpath: /var/log/auth.log
@@ -13,7 +13,7 @@
 ```yaml
 fail2ban_services:
   - name: pam-generic
-    enabled: true
+    enabled: "true"
     port: all
     filter: pam-generic
     logpath: /var/log/auth.log
@@ -25,7 +25,7 @@ fail2ban_services:
 ```yaml
 fail2ban_services:
   - name: xinetd-fail
-    enabled: true
+    enabled: "true"
     port: all
     filter: xinetd-fail
     logpath: /var/log/daemon.log
@@ -37,7 +37,7 @@ fail2ban_services:
 ```yaml
 fail2ban_services:
   - name: ssh-ddos
-    enabled: true
+    enabled: "true"
     port: ssh
     filter: ssh-ddos
     logpath: /var/log/auth.log
@@ -48,7 +48,7 @@ fail2ban_services:
 ```yaml
 fail2ban_services:
   - name: apache
-    enabled: true
+    enabled: "true"
     port: http,https
     filter: apache-auth
     logpath: /var/log/apache*/*error.log
@@ -59,7 +59,7 @@ fail2ban_services:
 ```yaml
 fail2ban_services:
   - name: apache-multiport
-    enabled: true
+    enabled: "true"
     port: http,https
     filter: apache-auth
     logpath: /var/log/apache*/*error.log
@@ -71,7 +71,7 @@ fail2ban_services:
 ```yaml
 fail2ban_services:
   - name: apache-noscript
-    enabled: true
+    enabled: "true"
     port: http,https
     filter: apache-noscript
     logpath: /var/log/apache*/*error.log
@@ -82,7 +82,7 @@ fail2ban_services:
 ```yaml
 fail2ban_services:
   - name: apache-overflows
-    enabled: true
+    enabled: "true"
     port: http,https
     filter: apache-overflows
     logpath: /var/log/apache*/*error.log
@@ -93,7 +93,7 @@ fail2ban_services:
 ```yaml
 fail2ban_services:
   - name: vsftpd
-    enabled: true
+    enabled: "true"
     port: ftp,ftp-data,ftps,ftps-data
     filter: vsftpd
     logpath: /var/log/vsftpd.log
@@ -104,7 +104,7 @@ fail2ban_services:
 ```yaml
 fail2ban_services:
   - name: proftpd
-    enabled: true
+    enabled: "true"
     port: ftp,ftp-data,ftps,ftps-data
     filter: proftpd
     logpath: /var/log/proftpd/proftpd.log
@@ -115,7 +115,7 @@ fail2ban_services:
 ```yaml
 fail2ban_services:
   - name: postfix
-    enabled: true
+    enabled: "true"
     port: smtp, ssmtp
     filter: postfix
     logpath: /var/log/mail.log
@@ -126,7 +126,7 @@ fail2ban_services:
 ```yaml
 fail2ban_services:
   - name: couriersmtp
-    enabled: true
+    enabled: "true"
     port: smtp,ssmtp
     filter: couriersmtp
     logpath: /var/log/mail.log
@@ -137,7 +137,7 @@ fail2ban_services:
 ```yaml
 fail2ban_services:
   - name: courierauth
-    enabled: true
+    enabled: "true"
     port: smtp,ssmtp,imap2,imap3,imaps,pop3,pop3s
     filter: courierlogin
     logpath: /var/log/mail.log
@@ -148,7 +148,7 @@ fail2ban_services:
 ```yaml
 fail2ban_services:
   - name: sasl
-    enabled: true
+    enabled: "true"
     port: smtp,ssmtp,imap2,imap3,imaps,pop3,pop3s
     filter: sasl
     logpath: /var/log/mail.log
@@ -159,7 +159,7 @@ fail2ban_services:
 ```yaml
 fail2ban_services:
   - name: dovecot
-    enabled: true
+    enabled: "true"
     port: smtp,ssmtp,imap2,imap3,imaps,pop3,pop3s
     filter: dovecot
     logpath: /var/log/mail.log
