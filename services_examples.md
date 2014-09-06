@@ -1,4 +1,4 @@
-### Ansibles - fail2ban: List of service examples
+### ANXS - fail2ban: List of service examples
 
 ###### ssh/dropbear/...
 ```yaml

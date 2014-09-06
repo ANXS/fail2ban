@@ -1,4 +1,4 @@
-## Ansibles - fail2ban [![Build Status](https://travis-ci.org/Ansibles/fail2ban.png)](https://travis-ci.org/Ansibles/fail2ban)
+## ANXS - fail2ban [![Build Status](https://travis-ci.org/ANXS/fail2ban.png)](https://travis-ci.org/ANXS/fail2ban)
 
 Ansible role which installs and configures fail2ban, a utility that watches logs for failed login attempts and blocks repeat offenders with firewall rules.
 
@@ -51,4 +51,4 @@ Licensed under the MIT License. See the LICENSE file for details.
 
 #### Feedback, bug-reports, requests, ...
 
-Are [welcome](https://github.com/ansibles/fail2ban/issues)!
+Are [welcome](https://github.com/ANXS/fail2ban/issues)!
