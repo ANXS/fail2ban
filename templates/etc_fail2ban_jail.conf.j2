@@ -92,21 +92,20 @@ action = %({{fail2ban_action}})s
 
 
 {% for service in fail2ban_services %}
-[{{service.name}}]
-
-enabled = {{service.enabled}}
-port = {{service.port}}
-filter = {{service.filter}}
-logpath = {{service.logpath}}
-maxretry = {{service.maxretry}}
+[{{ service.name }}]
+enabled = {{ service.enabled | default('true') }}
+port = {{ service.port }}
+filter = {{ service.filter }}
+logpath = {{ service.logpath }}
+maxretry = {{ service.maxretry | default (fail2ban_jail_maxretry_default) }}
 {% if service.protocol is defined %}
-protocol = {{service.protocol}}
+protocol = {{ service.protocol }}
 {% endif %}
 {% if service.action is defined %}
-action = %({{service.action}})s
+action = %({{ service.action }})s
 {% endif %}
 {% if service.banaction is defined %}
-banaction = {{service.banaction}}
+banaction = {{ service.banaction }}
 {% endif %}
 
 {% endfor %}
