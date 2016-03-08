@@ -15,17 +15,17 @@
 #          4 = DEBUG
 # Values:  NUM  Default:  3
 #
-loglevel = {{fail2ban_loglevel}}
+loglevel = {{ fail2ban_loglevel }}
 
 # Option:  logtarget
 # Notes.:  Set the log target. This could be a file, SYSLOG, STDERR or STDOUT.
 #          Only one log target can be specified.
 # Values:  STDOUT STDERR SYSLOG file  Default:  /var/log/fail2ban.log
 #
-logtarget = {{fail2ban_logtarget}}
+logtarget = {{ fail2ban_logtarget }}
 {% if fail2ban_logtarget == "SYSLOG" %}
-syslog-target = {{fail2ban_syslog_target}}
-syslog-facility = {{fail2ban_syslog_facility}}
+syslog-target = {{ fail2ban_syslog_target }}
+syslog-facility = {{ fail2ban_syslog_facility }}
 {% endif %}
 
 # Option: socket
@@ -34,5 +34,11 @@ syslog-facility = {{fail2ban_syslog_facility}}
 #         communicate with the server afterwards.
 # Values: FILE  Default:  /var/run/fail2ban/fail2ban.sock
 #
-socket = {{fail2ban_socket}}
+socket = {{ fail2ban_socket }}
 
+# Option: pidfile
+# Notes.: Set the PID file. This is used to store the process ID of the
+#         fail2ban server.
+# Values: [ FILE ]  Default: /var/run/fail2ban/fail2ban.pid
+#
+pidfile = {{ fail2ban_pidfile }}
