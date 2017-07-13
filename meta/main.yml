@@ -3,14 +3,14 @@
 galaxy_info:
   author: pjan vandaele
   company: ANXS
-  description: "An Ansible Role for fail2ban"
+  description: Install and configure fail2ban
   min_ansible_version: 1.4
   license: MIT
   platforms:
   - name: Ubuntu
     versions:
     - all
-  categories:
+  galaxy_tags:
   - system
 
 dependencies: []
