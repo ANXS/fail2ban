@@ -28,6 +28,28 @@
     - restart fail2ban
   tags: fail2ban
 
+- name: fail2ban | Add custom filters
+  copy:
+    src: filter.d/
+    dest: /etc/fail2ban/filter.d/
+    owner: root
+    group: root
+    mode: 0644
+  notify:
+    - restart fail2ban
+  tags: fail2ban
+
+- name: fail2ban | Add custom ban actions
+  copy:
+    src: action.d/
+    dest: /etc/fail2ban/action.d/
+    owner: root
+    group: root
+    mode: 0644
+  notify:
+    - restart fail2ban
+  tags: fail2ban
+
 - name: fail2ban | Make sure fail2ban is enabled
   service:
     name: fail2ban
