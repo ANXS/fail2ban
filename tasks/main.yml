@@ -1,57 +1,30 @@
-# file: fail2ban/tasks/main.yml
-
-- name: fail2ban | Make sure fail2ban is installed
+---
+- name: "Make sure fail2ban is installed"
   apt:
-    pkg: fail2ban
-    state: latest
-  tags: fail2ban
+    pkg: "fail2ban"
+    state: "latest"
 
-- name: fail2ban | Make sure the fail2ban configuration is up to date
+- name: "Make sure the fail2ban configuration is up to date"
   template:
-    src: etc_fail2ban_fail2ban.conf.j2
-    dest: /etc/fail2ban/fail2ban.conf
-    owner: root
-    group: root
-    mode: 0644
+    src: "fail2ban.conf.j2"
+    dest: "/etc/fail2ban/fail2ban.conf"
+    owner: "root"
+    group: "root"
+    mode: "0644"
   notify:
-    - restart fail2ban
-  tags: fail2ban
+    - "restart fail2ban"
 
-- name: fail2ban | Make sure the fail2ban jail configuration is up to date
+- name: "Generate fail2ban jail dot local"
   template:
-    src: etc_fail2ban_jail.conf.j2
-    dest: /etc/fail2ban/jail.conf
-    owner: root
-    group: root
-    mode: 0644
+    src: "jail.conf.j2"
+    dest: "/etc/fail2ban/jail.local"
+    owner: "root"
+    group: "root"
+    mode: "0644"
   notify:
-    - restart fail2ban
-  tags: fail2ban
+    - "restart fail2ban"
 
-- name: fail2ban | Add custom filters
-  copy:
-    src: filter.d/
-    dest: /etc/fail2ban/filter.d/
-    owner: root
-    group: root
-    mode: 0644
-  notify:
-    - restart fail2ban
-  tags: fail2ban
-
-- name: fail2ban | Add custom ban actions
-  copy:
-    src: action.d/
-    dest: /etc/fail2ban/action.d/
-    owner: root
-    group: root
-    mode: 0644
-  notify:
-    - restart fail2ban
-  tags: fail2ban
-
-- name: fail2ban | Make sure fail2ban is enabled
+- name: "Make sure fail2ban is enabled"
   service:
-    name: fail2ban
-    enabled: yes
-  tags: fail2ban
+    name: "fail2ban"
+    enabled: true

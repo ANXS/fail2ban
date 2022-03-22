@@ -1,0 +1,10 @@
+# {{ansible_managed}}
+
+[DEFAULT]
+bantime = {{fail2ban_bantime}}
+ignoreip = {{fail2ban_ignoreip|join(" ")}}
+maxretry = {{fail2ban_maxretry}}
+backend = {{fail2ban_backend}}
+destemail = {{fail2ban_destemail}}
+fail2ban_banaction = {{fail2ban_banaction}}
+enabled = false
