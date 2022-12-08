@@ -1,16 +1,15 @@
-# file: fail2ban/meta/main.yml
-
+---
 galaxy_info:
-  author: pjan vandaele
-  company: ANXS
-  description: Install and configure fail2ban
-  min_ansible_version: 1.4
-  license: MIT
+  author: "ANXS Crew"
+  company: "ANXS"
+  description: "Install and configure fail2ban"
+  min_ansible_version: "2.9"
+  license: "MIT"
   platforms:
-  - name: Ubuntu
-    versions:
-    - all
+    - name: "Ubuntu"
+      versions:
+        - "all"
   galaxy_tags:
-  - system
+    - "system"
 
 dependencies: []

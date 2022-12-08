@@ -10,7 +10,7 @@
     dest: "/etc/fail2ban/fail2ban.conf"
     owner: "root"
     group: "root"
-    mode: "0644"
+    mode: "{{fail2ban_config_mode}}"
   notify:
     - "restart fail2ban"
 
@@ -20,7 +20,7 @@
     dest: "/etc/fail2ban/jail.local"
     owner: "root"
     group: "root"
-    mode: "0644"
+    mode: "{{fail2ban_config_mode}}"
   notify:
     - "restart fail2ban"
 
@@ -28,3 +28,49 @@
   service:
     name: "fail2ban"
     enabled: true
+
+- name: "Find all fail2ban configs"
+  find:
+    paths:
+      - "/etc/fail2ban/*/"
+      - "/etc/fail2ban"
+  register: fail2ban_configs
+
+- name: "Update override permissions for config files"
+  file:
+    path: "{{item.path}}"
+    mode: "{{fail2ban_config_mode}}"
+  loop: "{{fail2ban_configs.files}}"
+
+- name: "generate extra filters"
+  copy:
+    src: "{{item}}"
+    dest: "{{fail2ban_config_dir}}/filter.d/{{item|basename}}"
+    owner: "root"
+    group: "root"
+    mode: "{{fail2ban_config_mode}}"
+  loop: "{{fail2ban_extra_filters}}"
+  notify:
+    - "restart fail2ban"
+
+- name: "generate extra jail configs"
+  copy:
+    src: "{{item}}"
+    dest: "{{fail2ban_config_dir}}/jail.d/{{item|basename}}"
+    owner: "root"
+    group: "root"
+    mode: "{{fail2ban_config_mode}}"
+  loop: "{{fail2ban_extra_jails}}"
+  notify:
+    - "restart fail2ban"
+
+- name: "generate extra configs"
+  copy:
+    src: "{{item}}"
+    dest: "{{fail2ban_config_dir}}/fail2ban.d/{{item|basename}}"
+    owner: "root"
+    group: "root"
+    mode: "{{fail2ban_config_mode}}"
+  loop: "{{fail2ban_extra_configs}}"
+  notify:
+    - "restart fail2ban"

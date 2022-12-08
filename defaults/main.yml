@@ -3,8 +3,15 @@ fail2ban_loglevel: 'INFO'
 fail2ban_logtarget: "/var/log/fail2ban.log"
 
 fail2ban_ignoreip: ["127.0.0.1/8"]
-fail2ban_bantime: "10m"
-fail2ban_maxretry: 3
+fail2ban_bantime: "5d"
+fail2ban_maxretry: 2
+fail2ban_findtime: "5m"
 fail2ban_backend: "auto"
 fail2ban_destemail: "root@localhost"
 fail2ban_banaction: "iptables-multiport"
+
+fail2ban_config_mode: "0644"
+
+fail2ban_extra_filters: []
+fail2ban_extra_jails: []
+fail2ban_extra_configs: []
