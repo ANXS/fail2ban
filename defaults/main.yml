@@ -20,11 +20,8 @@ fail2ban_banaction: "iptables-multiport"
 #   "%(action_mwl)s" (ban + whois + logs)
 # fail2ban_action: "%(action_)s"
 
-# Database purge age -- bans older than this are removed from the db.
-# Should be longer than your longest bantime to preserve ban persistence.
 fail2ban_dbpurgeage: "1d"
 
-# Max matches stored per ticket in the database.
 fail2ban_dbmaxmatches: 10
 
 fail2ban_config_mode: "0644"
@@ -46,6 +43,5 @@ fail2ban_filter_test_lines: {}
 # requires node_exporter configured with --collector.textfile.directory.
 fail2ban_textfile_enabled: false
 fail2ban_textfile_dir: "/opt/prometheus/textfiles"
-# systemd OnCalendar expression. default: every 2 minutes.
 fail2ban_textfile_oncalendar: "*:0/2"
 fail2ban_textfile_user: "root"
