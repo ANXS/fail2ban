@@ -1,0 +1,66 @@
+---
+- name: "create script directory"
+  ansible.builtin.file:
+    path: "/opt/fail2ban-exporter"
+    state: "directory"
+    owner: "{{ fail2ban_textfile_user }}"
+    group: "{{ fail2ban_textfile_user }}"
+    mode: "0755"
+
+- name: "deploy fail2ban textfile collector script"
+  ansible.builtin.template:
+    src: "fail2ban-textfile.sh.j2"
+    dest: "/opt/fail2ban-exporter/fail2ban-textfile.sh"
+    owner: "{{ fail2ban_textfile_user }}"
+    group: "{{ fail2ban_textfile_user }}"
+    mode: "0755"
+
+- name: "deploy fail2ban textfile systemd service"
+  ansible.builtin.template:
+    src: "fail2ban-textfile.service.j2"
+    dest: "/etc/systemd/system/fail2ban-textfile.service"
+    owner: "root"
+    group: "root"
+    mode: "0644"
+  register: fail2ban_textfile_service
+
+- name: "deploy fail2ban textfile systemd timer"
+  ansible.builtin.template:
+    src: "fail2ban-textfile.timer.j2"
+    dest: "/etc/systemd/system/fail2ban-textfile.timer"
+    owner: "root"
+    group: "root"
+    mode: "0644"
+  register: fail2ban_textfile_timer
+
+- name: "reload systemd if textfile units changed"
+  ansible.builtin.systemd:
+    daemon_reload: true
+  when: fail2ban_textfile_service.changed or fail2ban_textfile_timer.changed
+
+- name: "enable and start fail2ban textfile timer"
+  ansible.builtin.systemd:
+    name: "fail2ban-textfile.timer"
+    enabled: true
+    state: "started"
+
+- name: "restart fail2ban textfile timer if units changed"
+  ansible.builtin.systemd:
+    name: "fail2ban-textfile.timer"
+    state: "restarted"
+  when: fail2ban_textfile_service.changed or fail2ban_textfile_timer.changed
+
+# legacy cleanup: pre-systemd-timer versions of this role used a cron entry
+# named "fail2ban prometheus textfile collector". remove it on hosts where
+# crontab is installed; no-op elsewhere.
+- name: "check for crontab binary"
+  ansible.builtin.stat:
+    path: "/usr/bin/crontab"
+  register: fail2ban_textfile_crontab
+
+- name: "remove legacy cron entry"
+  ansible.builtin.cron:
+    name: "fail2ban prometheus textfile collector"
+    user: "{{ fail2ban_textfile_user }}"
+    state: "absent"
+  when: fail2ban_textfile_crontab.stat.exists

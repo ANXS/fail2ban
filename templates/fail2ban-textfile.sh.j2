@@ -1,0 +1,42 @@
+#!/usr/bin/env bash
+# {{ ansible_managed }}
+# Collect fail2ban metrics for prometheus node_exporter textfile collector.
+# Writes to {{ fail2ban_textfile_dir }}/fail2ban.prom
+
+set -euo pipefail
+
+OUTFILE="{{ fail2ban_textfile_dir }}/fail2ban.prom"
+TMPFILE="${OUTFILE}.$$"
+trap 'rm -f "${TMPFILE}"' EXIT
+
+{
+  echo "# HELP f2b_jail_banned_current Number of currently banned IPs per jail"
+  echo "# TYPE f2b_jail_banned_current gauge"
+  echo "# HELP f2b_jail_banned_total Total number of banned IPs since startup per jail"
+  echo "# TYPE f2b_jail_banned_total counter"
+  echo "# HELP f2b_jail_failed_current Number of current failures per jail"
+  echo "# TYPE f2b_jail_failed_current gauge"
+  echo "# HELP f2b_jail_failed_total Total number of failures since startup per jail"
+  echo "# TYPE f2b_jail_failed_total counter"
+
+  jails=$(fail2ban-client status | sed -n 's/.*Jail list:\s*//p' | tr -d ' ' | tr ',' '\n')
+
+  for jail in ${jails}; do
+    status=$(fail2ban-client status "${jail}")
+    banned_current=$(echo "${status}" | sed -n 's/.*Currently banned:\s*//p' | tr -d '[:space:]')
+    banned_total=$(echo "${status}" | sed -n 's/.*Total banned:\s*//p' | tr -d '[:space:]')
+    failed_current=$(echo "${status}" | sed -n 's/.*Currently failed:\s*//p' | tr -d '[:space:]')
+    failed_total=$(echo "${status}" | sed -n 's/.*Total failed:\s*//p' | tr -d '[:space:]')
+
+    echo "f2b_jail_banned_current{jail=\"${jail}\"} ${banned_current}"
+    echo "f2b_jail_banned_total{jail=\"${jail}\"} ${banned_total}"
+    echo "f2b_jail_failed_current{jail=\"${jail}\"} ${failed_current}"
+    echo "f2b_jail_failed_total{jail=\"${jail}\"} ${failed_total}"
+  done
+
+  echo "# HELP f2b_jail_count Number of jails configured"
+  echo "# TYPE f2b_jail_count gauge"
+  echo "f2b_jail_count $(echo "${jails}" | wc -w)"
+} > "${TMPFILE}"
+
+mv "${TMPFILE}" "${OUTFILE}"

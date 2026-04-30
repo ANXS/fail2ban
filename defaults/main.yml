@@ -9,9 +9,43 @@ fail2ban_findtime: "5m"
 fail2ban_backend: "auto"
 fail2ban_destemail: "root@localhost"
 fail2ban_banaction: "iptables-multiport"
+# For nftables hosts, set to "nftables-multiport" and ensure nft is in PATH
+# fail2ban_banaction_allports: "nftables-allports"
+
+# Default chain for ban rules. Use "DOCKER-USER" for Docker hosts.
+# fail2ban_chain: "INPUT"
+
+# Default action. If unset, fail2ban uses its built-in default.
+# Common values: "%(action_)s" (ban only), "%(action_mw)s" (ban + whois),
+#   "%(action_mwl)s" (ban + whois + logs)
+# fail2ban_action: "%(action_)s"
+
+# Database purge age -- bans older than this are removed from the db.
+# Should be longer than your longest bantime to preserve ban persistence.
+fail2ban_dbpurgeage: "1d"
+
+# Max matches stored per ticket in the database.
+fail2ban_dbmaxmatches: 10
 
 fail2ban_config_mode: "0644"
 
 fail2ban_extra_filters: []
 fail2ban_extra_jails: []
 fail2ban_extra_configs: []
+
+# Optional: map filter names to sample log lines for regex match validation.
+# Filters listed here are tested with fail2ban-regex to confirm they match.
+# Filters not listed still get a syntax-only check.
+# Example:
+#   fail2ban_filter_test_lines:
+#     haproxy-scanner: "1.2.3.4:1234 [...] https backend/srv 0/0/1/5/6 404 224 ..."
+fail2ban_filter_test_lines: {}
+
+# prometheus metrics via node_exporter textfile collector.
+# writes .prom files to the specified directory on a systemd timer.
+# requires node_exporter configured with --collector.textfile.directory.
+fail2ban_textfile_enabled: false
+fail2ban_textfile_dir: "/opt/prometheus/textfiles"
+# systemd OnCalendar expression. default: every 2 minutes.
+fail2ban_textfile_oncalendar: "*:0/2"
+fail2ban_textfile_user: "root"

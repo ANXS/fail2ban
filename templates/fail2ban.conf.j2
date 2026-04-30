@@ -66,13 +66,13 @@ dbfile = /var/lib/fail2ban/fail2ban.sqlite3
 # Options: dbpurgeage
 # Notes.: Sets age at which bans should be purged from the database
 # Values: [ SECONDS ] Default: 86400 (24hours)
-dbpurgeage = 1d
+dbpurgeage = {{ fail2ban_dbpurgeage }}
 
 # Options: dbmaxmatches
 # Notes.: Number of matches stored in database per ticket (resolvable via
 #         tags <ipmatches>/<ipjailmatches> in actions)
 # Values: [ INT ] Default: 10
-dbmaxmatches = 10
+dbmaxmatches = {{ fail2ban_dbmaxmatches }}
 
 [Definition]
 

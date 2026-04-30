@@ -1,0 +1,10 @@
+# {{ ansible_managed }}
+[Unit]
+Description=fail2ban prometheus textfile collector
+After=fail2ban.service
+Wants=fail2ban.service
+
+[Service]
+Type=oneshot
+User={{ fail2ban_textfile_user }}
+ExecStart=/opt/fail2ban-exporter/fail2ban-textfile.sh

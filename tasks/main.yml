@@ -1,76 +1,144 @@
 ---
-- name: "Make sure fail2ban is installed"
-  apt:
+- name: "install fail2ban"
+  ansible.builtin.apt:
     pkg: "fail2ban"
-    state: "latest"
+    state: "present"
 
-- name: "Make sure the fail2ban configuration is up to date"
-  template:
+- name: "deploy fail2ban.conf"
+  ansible.builtin.template:
     src: "fail2ban.conf.j2"
     dest: "/etc/fail2ban/fail2ban.conf"
     owner: "root"
     group: "root"
-    mode: "{{fail2ban_config_mode}}"
-  notify:
-    - "restart fail2ban"
+    mode: "{{ fail2ban_config_mode }}"
+  register: fail2ban_main_config
 
-- name: "Generate fail2ban jail dot local"
-  template:
+- name: "deploy jail.local"
+  ansible.builtin.template:
     src: "jail.conf.j2"
     dest: "/etc/fail2ban/jail.local"
     owner: "root"
     group: "root"
-    mode: "{{fail2ban_config_mode}}"
-  notify:
-    - "restart fail2ban"
+    mode: "{{ fail2ban_config_mode }}"
+  register: fail2ban_jail_config
 
-- name: "Make sure fail2ban is enabled"
-  service:
-    name: "fail2ban"
-    enabled: true
-
-- name: "Find all fail2ban configs"
-  find:
+- name: "find all fail2ban configs"
+  ansible.builtin.find:
     paths:
       - "/etc/fail2ban/*/"
       - "/etc/fail2ban"
   register: fail2ban_configs
 
-- name: "Update override permissions for config files"
-  file:
-    path: "{{item.path}}"
-    mode: "{{fail2ban_config_mode}}"
-  loop: "{{fail2ban_configs.files}}"
+- name: "update config file permissions"
+  ansible.builtin.file:
+    path: "{{ item.path }}"
+    mode: "{{ fail2ban_config_mode }}"
+  loop: "{{ fail2ban_configs.files }}"
+  loop_control:
+    label: "{{ item.path }}"
 
-- name: "generate extra filters"
-  copy:
-    src: "{{item}}"
-    dest: "{{fail2ban_config_dir}}/filter.d/{{item|basename}}"
+- name: "deploy extra filters"
+  ansible.builtin.copy:
+    src: "{{ item }}"
+    dest: "{{ fail2ban_config_dir }}/filter.d/{{ item | basename }}"
     owner: "root"
     group: "root"
-    mode: "{{fail2ban_config_mode}}"
-  loop: "{{fail2ban_extra_filters}}"
-  notify:
-    - "restart fail2ban"
+    mode: "{{ fail2ban_config_mode }}"
+  loop: "{{ fail2ban_extra_filters }}"
+  loop_control:
+    label: "{{ item | basename }}"
+  register: fail2ban_extra_filters_result
 
-- name: "generate extra jail configs"
-  copy:
-    src: "{{item}}"
-    dest: "{{fail2ban_config_dir}}/jail.d/{{item|basename}}"
+- name: "deploy extra jail configs"
+  ansible.builtin.copy:
+    src: "{{ item }}"
+    dest: "{{ fail2ban_config_dir }}/jail.d/{{ item | basename }}"
     owner: "root"
     group: "root"
-    mode: "{{fail2ban_config_mode}}"
-  loop: "{{fail2ban_extra_jails}}"
-  notify:
-    - "restart fail2ban"
+    mode: "{{ fail2ban_config_mode }}"
+  loop: "{{ fail2ban_extra_jails }}"
+  loop_control:
+    label: "{{ item | basename }}"
+  register: fail2ban_extra_jails_result
 
-- name: "generate extra configs"
-  copy:
-    src: "{{item}}"
-    dest: "{{fail2ban_config_dir}}/fail2ban.d/{{item|basename}}"
+- name: "deploy extra configs"
+  ansible.builtin.copy:
+    src: "{{ item }}"
+    dest: "{{ fail2ban_config_dir }}/fail2ban.d/{{ item | basename }}"
     owner: "root"
     group: "root"
-    mode: "{{fail2ban_config_mode}}"
-  loop: "{{fail2ban_extra_configs}}"
-  notify:
-    - "restart fail2ban"
+    mode: "{{ fail2ban_config_mode }}"
+  loop: "{{ fail2ban_extra_configs }}"
+  loop_control:
+    label: "{{ item | basename }}"
+  register: fail2ban_extra_configs_result
+
+# validate filter syntax and optionally test against sample log lines.
+# fail2ban-regex returns rc=0 (match), rc=1 (no match), rc>=2 (error).
+# syntax check: feed /dev/null, accept rc 0 or 1, fail on anything else.
+# match check: feed a sample line, require rc=0 (at least one match).
+- name: "validate extra filter syntax"
+  ansible.builtin.command:
+    cmd: >-
+      fail2ban-regex /dev/null
+      {{ fail2ban_config_dir }}/filter.d/{{ item | basename }}
+  loop: "{{ fail2ban_extra_filters }}"
+  loop_control:
+    label: "{{ item | basename }}"
+  register: fail2ban_filter_syntax
+  changed_when: false
+  failed_when: fail2ban_filter_syntax.rc > 1
+  when: fail2ban_extra_filters | length > 0
+
+- name: "build deployed filter name list"
+  ansible.builtin.set_fact:
+    fail2ban_deployed_filter_names: >-
+      {{ fail2ban_extra_filters | map('basename') | map('regex_replace', '\.conf$', '') | list }}
+
+- name: "validate filters against sample log lines"
+  ansible.builtin.command:
+    argv:
+      - "fail2ban-regex"
+      - "{{ item.value }}"
+      - "{{ fail2ban_config_dir }}/filter.d/{{ item.key }}.conf"
+  loop: "{{ fail2ban_filter_test_lines | dict2items }}"
+  loop_control:
+    label: "{{ item.key }}"
+  register: fail2ban_filter_match
+  changed_when: false
+  failed_when: fail2ban_filter_match.rc != 0
+  when:
+    - fail2ban_filter_test_lines | length > 0
+    - item.key in fail2ban_deployed_filter_names
+
+- name: "ensure fail2ban started"
+  ansible.builtin.service:
+    name: "fail2ban"
+    state: "started"
+    enabled: true
+  register: fail2ban_started
+
+- name: "restart fail2ban"
+  ansible.builtin.service:
+    name: "fail2ban"
+    state: "restarted"
+  when: >-
+    (not fail2ban_started.changed)
+    and (fail2ban_main_config.changed
+         or fail2ban_extra_configs_result.changed)
+
+- name: "reload fail2ban"
+  ansible.builtin.service:
+    name: "fail2ban"
+    state: "reloaded"
+  when: >-
+    (not fail2ban_started.changed)
+    and (not fail2ban_main_config.changed)
+    and (not fail2ban_extra_configs_result.changed)
+    and (fail2ban_jail_config.changed
+         or fail2ban_extra_jails_result.changed
+         or fail2ban_extra_filters_result.changed)
+
+- name: "deploy textfile collector for prometheus"
+  ansible.builtin.include_tasks: "textfile.yml"
+  when: fail2ban_textfile_enabled

@@ -7,5 +7,14 @@ ignoreip = {{(fail2ban_always_ignore + fail2ban_ignoreip)|join(" ")}}
 maxretry = {{fail2ban_maxretry}}
 backend = {{fail2ban_backend}}
 destemail = {{fail2ban_destemail}}
-fail2ban_banaction = {{fail2ban_banaction}}
+banaction = {{ fail2ban_banaction }}
+{% if fail2ban_banaction_allports is defined %}
+banaction_allports = {{ fail2ban_banaction_allports }}
+{% endif %}
+{% if fail2ban_chain is defined %}
+chain = {{ fail2ban_chain }}
+{% endif %}
+{% if fail2ban_action is defined %}
+action = {{ fail2ban_action }}
+{% endif %}
 enabled = false
