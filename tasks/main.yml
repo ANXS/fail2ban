@@ -1,7 +1,9 @@
 ---
 - name: "install fail2ban"
   ansible.builtin.apt:
-    pkg: "fail2ban"
+    pkg:
+      - "fail2ban"
+      - "python3-systemd"
     state: "present"
 
 - name: "deploy fail2ban.conf"
