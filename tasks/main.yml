@@ -26,9 +26,9 @@
 
 - name: "find all fail2ban configs"
   ansible.builtin.find:
-    paths:
-      - "/etc/fail2ban/*/"
-      - "/etc/fail2ban"
+    paths: "/etc/fail2ban"
+    recurse: true
+    file_type: "file"
   register: fail2ban_configs
 
 - name: "update config file permissions"
