@@ -144,3 +144,7 @@
 - name: "deploy textfile collector for prometheus"
   ansible.builtin.include_tasks: "textfile.yml"
   when: fail2ban_textfile_enabled
+
+- name: "tear down textfile collector when disabled"
+  ansible.builtin.include_tasks: "textfile_teardown.yml"
+  when: not fail2ban_textfile_enabled
