@@ -37,10 +37,14 @@
     path: "/opt/fail2ban-exporter"
     state: "absent"
 
-- name: "remove fail2ban textfile metrics file"
+- name: "remove fail2ban textfile metrics state"
   ansible.builtin.file:
-    path: "{{ fail2ban_textfile_dir }}/fail2ban.prom"
+    path: "{{ item }}"
     state: "absent"
+  loop:
+    - "{{ fail2ban_textfile_dir }}/fail2ban.prom"
+    - "{{ fail2ban_textfile_state_dir }}/fail2ban.prom"
+    - "/etc/tmpfiles.d/fail2ban-prometheus.conf"
 
 # legacy cleanup: pre-systemd-timer versions used a cron entry of the same name.
 - name: "check for crontab binary"

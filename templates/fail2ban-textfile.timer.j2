@@ -3,8 +3,10 @@
 Description=run fail2ban prometheus textfile collector on schedule
 
 [Timer]
+OnBootSec={{ fail2ban_textfile_onbootsec }}
 OnCalendar={{ fail2ban_textfile_oncalendar }}
 AccuracySec=10s
+Persistent=true
 Unit=fail2ban-textfile.service
 
 [Install]

@@ -43,5 +43,7 @@ fail2ban_filter_test_lines: {}
 # requires node_exporter configured with --collector.textfile.directory.
 fail2ban_textfile_enabled: false
 fail2ban_textfile_dir: "/opt/prometheus/textfiles"
+fail2ban_textfile_state_dir: "/var/lib/fail2ban-exporter/metrics"
+fail2ban_textfile_onbootsec: "30s"
 fail2ban_textfile_oncalendar: "*:0/2"
 fail2ban_textfile_user: "root"

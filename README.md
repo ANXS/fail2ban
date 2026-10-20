@@ -43,6 +43,18 @@ fail2ban_services:
 
 There's a list of [service examples](services_examples.md) to help you.
 
+The optional node_exporter textfile collector is controlled by:
+
+- `fail2ban_textfile_enabled` - installs and schedules the collector
+- `fail2ban_textfile_dir` - node_exporter's runtime textfile directory
+- `fail2ban_textfile_state_dir` - persistent canonical metric storage
+- `fail2ban_textfile_onbootsec` - delay before the first boot refresh
+- `fail2ban_textfile_oncalendar` - recurring systemd timer schedule
+- `fail2ban_textfile_user` - account used to run the collector
+
+The metric is stored persistently and linked into the runtime collector
+directory. systemd-tmpfiles recreates that link after reboot.
+
 
 #### Testing
 This project comes with a VagrantFile, this is a fast and easy way to test changes to the role, fire it up with `vagrant up`

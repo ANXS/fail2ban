@@ -1,11 +1,10 @@
 #!/usr/bin/env bash
 # {{ ansible_managed }}
 # Collect fail2ban metrics for prometheus node_exporter textfile collector.
-# Writes to {{ fail2ban_textfile_dir }}/fail2ban.prom
 
 set -euo pipefail
 
-OUTFILE="{{ fail2ban_textfile_dir }}/fail2ban.prom"
+OUTFILE="{{ fail2ban_textfile_state_dir }}/fail2ban.prom"
 TMPFILE="${OUTFILE}.$$"
 trap 'rm -f "${TMPFILE}"' EXIT
 

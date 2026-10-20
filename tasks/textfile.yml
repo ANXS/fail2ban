@@ -1,7 +1,26 @@
 ---
+- name: "assert textfile metrics use persistent state"
+  ansible.builtin.assert:
+    that:
+      - fail2ban_textfile_state_dir is match('^/')
+      - not (fail2ban_textfile_state_dir is match('^/etc(?:/|$)'))
+      - not (fail2ban_textfile_state_dir is match('^/(?:var/)?run(?:/|$)'))
+    fail_msg: >-
+      fail2ban_textfile_state_dir must be an absolute persistent application
+      state path, not configuration or a runtime filesystem.
+    quiet: true
+
 - name: "create script directory"
   ansible.builtin.file:
     path: "/opt/fail2ban-exporter"
+    state: "directory"
+    owner: "{{ fail2ban_textfile_user }}"
+    group: "{{ fail2ban_textfile_user }}"
+    mode: "0755"
+
+- name: "create persistent metrics directory"
+  ansible.builtin.file:
+    path: "{{ fail2ban_textfile_state_dir }}"
     state: "directory"
     owner: "{{ fail2ban_textfile_user }}"
     group: "{{ fail2ban_textfile_user }}"
@@ -14,6 +33,27 @@
     owner: "{{ fail2ban_textfile_user }}"
     group: "{{ fail2ban_textfile_user }}"
     mode: "0755"
+  register: fail2ban_textfile_script
+
+- name: "install fail2ban metric boot link"
+  ansible.builtin.template:
+    src: "fail2ban-prometheus.conf.j2"
+    dest: "/etc/tmpfiles.d/fail2ban-prometheus.conf"
+    owner: "root"
+    group: "root"
+    mode: "0644"
+
+- name: "link fail2ban metrics into the collector"
+  ansible.builtin.file:
+    src: "{{ fail2ban_textfile_state_dir }}/fail2ban.prom"
+    dest: "{{ fail2ban_textfile_dir }}/fail2ban.prom"
+    state: "link"
+    force: true
+
+- name: "inspect persistent fail2ban metric"
+  ansible.builtin.stat:
+    path: "{{ fail2ban_textfile_state_dir }}/fail2ban.prom"
+  register: fail2ban_textfile_metric
 
 - name: "deploy fail2ban textfile systemd service"
   ansible.builtin.template:
@@ -38,6 +78,15 @@
     daemon_reload: true
   when: fail2ban_textfile_service.changed or fail2ban_textfile_timer.changed
 
+- name: "publish initial fail2ban metrics"
+  ansible.builtin.systemd:
+    name: "fail2ban-textfile.service"
+    state: "started"
+  when: >-
+    (not fail2ban_textfile_metric.stat.exists)
+    or fail2ban_textfile_script.changed
+    or fail2ban_textfile_service.changed
+
 - name: "enable and start fail2ban textfile timer"
   ansible.builtin.systemd:
     name: "fail2ban-textfile.timer"
@@ -50,9 +99,7 @@
     state: "restarted"
   when: fail2ban_textfile_service.changed or fail2ban_textfile_timer.changed
 
-# legacy cleanup: pre-systemd-timer versions of this role used a cron entry
-# named "fail2ban prometheus textfile collector". remove it on hosts where
-# crontab is installed; no-op elsewhere.
+# Pre-systemd-timer versions used a cron entry with this name.
 - name: "check for crontab binary"
   ansible.builtin.stat:
     path: "/usr/bin/crontab"
