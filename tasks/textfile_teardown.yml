@@ -1,43 +1,39 @@
 ---
-# teardown for the fail2ban prometheus textfile collector. runs when
-# fail2ban_textfile_enabled is false (e.g. workstations that nothing scrapes).
-# safe no-op on hosts where the collector was never deployed.
-
-- name: "check for fail2ban textfile timer unit"
+- name: "Inspect fail2ban textfile timer unit"
   ansible.builtin.stat:
     path: "/etc/systemd/system/fail2ban-textfile.timer"
   register: fail2ban_textfile_timer_unit
 
-- name: "stop and disable fail2ban textfile timer"
-  ansible.builtin.systemd:
+- name: "Stop and disable fail2ban textfile timer"
+  ansible.builtin.systemd_service:
     name: "fail2ban-textfile.timer"
     state: "stopped"
     enabled: false
   when: fail2ban_textfile_timer_unit.stat.exists
 
-- name: "remove fail2ban textfile systemd timer"
+- name: "Remove fail2ban textfile systemd timer"
   ansible.builtin.file:
     path: "/etc/systemd/system/fail2ban-textfile.timer"
     state: "absent"
   register: fail2ban_textfile_timer_removed
 
-- name: "remove fail2ban textfile systemd service"
+- name: "Remove fail2ban textfile systemd service"
   ansible.builtin.file:
     path: "/etc/systemd/system/fail2ban-textfile.service"
     state: "absent"
   register: fail2ban_textfile_service_removed
 
-- name: "reload systemd if textfile units were removed"
-  ansible.builtin.systemd:
+- name: "Reload systemd for removed textfile units"
+  ansible.builtin.systemd_service:
     daemon_reload: true
   when: fail2ban_textfile_timer_removed.changed or fail2ban_textfile_service_removed.changed
 
-- name: "remove fail2ban textfile collector script directory"
+- name: "Remove fail2ban textfile collector script directory"
   ansible.builtin.file:
     path: "/opt/fail2ban-exporter"
     state: "absent"
 
-- name: "remove fail2ban textfile metrics state"
+- name: "Remove fail2ban textfile metrics"
   ansible.builtin.file:
     path: "{{ item }}"
     state: "absent"
@@ -46,15 +42,29 @@
     - "{{ fail2ban_textfile_state_dir }}/fail2ban.prom"
     - "/etc/tmpfiles.d/fail2ban-prometheus.conf"
 
-# legacy cleanup: pre-systemd-timer versions used a cron entry of the same name.
-- name: "check for crontab binary"
+- name: "Inspect crontab binary"
   ansible.builtin.stat:
     path: "/usr/bin/crontab"
   register: fail2ban_textfile_teardown_crontab
 
-- name: "remove legacy cron entry"
+- name: "Read legacy crontab"
+  ansible.builtin.command:
+    argv:
+      - "crontab"
+      - "-l"
+      - "-u"
+      - "{{ fail2ban_textfile_legacy_cron_user }}"
+  register: fail2ban_textfile_teardown_crontab_list
+  changed_when: false
+  failed_when: false
+  when: fail2ban_textfile_teardown_crontab.stat.exists
+
+# Legacy cleanup for hosts upgraded from a cron-based collector. Gate on a
+# readable crontab, not just the binary: with no crontab there is nothing to
+# remove, and the cron module raises a hard error instead of reporting that.
+- name: "Remove legacy cron entry"
   ansible.builtin.cron:
     name: "fail2ban prometheus textfile collector"
-    user: "{{ fail2ban_textfile_user }}"
+    user: "{{ fail2ban_textfile_legacy_cron_user }}"
     state: "absent"
-  when: fail2ban_textfile_teardown_crontab.stat.exists
+  when: fail2ban_textfile_teardown_crontab_list.rc | default(1) == 0

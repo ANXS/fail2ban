@@ -1,49 +1,54 @@
 ---
-fail2ban_loglevel: 'INFO'
-fail2ban_logtarget: "/var/log/fail2ban.log"
+fail2ban_package_version: ""
 
-fail2ban_ignoreip: ["127.0.0.1/8"]
+fail2ban_loglevel: "INFO"
+fail2ban_logtarget: "/var/log/fail2ban.log"
+fail2ban_socket: "/var/run/fail2ban/fail2ban.sock"
+fail2ban_pidfile: "/var/run/fail2ban/fail2ban.pid"
+fail2ban_dbfile: "/var/lib/fail2ban/fail2ban.sqlite3"
+fail2ban_dbpurgeage: "1d"
+fail2ban_dbmaxmatches: 10
+
+fail2ban_ignoreip: []
 fail2ban_bantime: "5d"
 fail2ban_maxretry: 2
 fail2ban_findtime: "5m"
 fail2ban_backend: "auto"
 fail2ban_destemail: "root@localhost"
 fail2ban_banaction: "iptables-multiport"
-# For nftables hosts, set to "nftables-multiport" and ensure nft is in PATH
+# For nftables hosts, set this to "nftables-multiport" and ensure nft is
+# available to the fail2ban service.
 # fail2ban_banaction_allports: "nftables-allports"
 
-# Default chain for ban rules. Use "DOCKER-USER" for Docker hosts.
+# Set this globally only when every jail uses the same firewall path.
+# Docker-published services generally need per-jail chain and banaction values.
 # fail2ban_chain: "INPUT"
 
-# Default action. If unset, fail2ban uses its built-in default.
-# Common values: "%(action_)s" (ban only), "%(action_mw)s" (ban + whois),
-#   "%(action_mwl)s" (ban + whois + logs)
+# Common values are "%(action_)s", "%(action_mw)s", and "%(action_mwl)s".
 # fail2ban_action: "%(action_)s"
 
-fail2ban_dbpurgeage: "1d"
-
-fail2ban_dbmaxmatches: 10
-
 fail2ban_config_mode: "0644"
+
+# Each item requires name; every other key is rendered as a jail option.
+fail2ban_services: []
 
 fail2ban_extra_filters: []
 fail2ban_extra_jails: []
 fail2ban_extra_configs: []
+fail2ban_managed_state_dir: "/var/lib/fail2ban/ansible-managed"
 
-# Optional: map filter names to sample log lines for regex match validation.
-# Filters listed here are tested with fail2ban-regex to confirm they match.
-# Filters not listed still get a syntax-only check.
-# Example:
-#   fail2ban_filter_test_lines:
-#     haproxy-scanner: "1.2.3.4:1234 [...] https backend/srv 0/0/1/5/6 404 224 ..."
+# Map deployed filter names to sample log lines that must match.
+# Filters without a sample still receive a syntax check.
 fail2ban_filter_test_lines: {}
 
-# prometheus metrics via node_exporter textfile collector.
-# writes .prom files to the specified directory on a systemd timer.
-# requires node_exporter configured with --collector.textfile.directory.
+# Prometheus metrics via node_exporter's textfile collector.
 fail2ban_textfile_enabled: false
 fail2ban_textfile_dir: "/opt/prometheus/textfiles"
 fail2ban_textfile_state_dir: "/var/lib/fail2ban-exporter/metrics"
 fail2ban_textfile_onbootsec: "30s"
 fail2ban_textfile_oncalendar: "*:0/2"
-fail2ban_textfile_user: "root"
+# Timezone the schedule is evaluated in. Keep this set: an unpinned calendar
+# spec skips the whole repeated hour at DST fall-back, stalling the collector
+# and staling every metric it writes. Set to "" for local wall-clock.
+fail2ban_textfile_timezone: "UTC"
+fail2ban_textfile_legacy_cron_user: "root"

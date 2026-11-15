@@ -1,0 +1,49 @@
+---
+dependency:
+  name: "shell"
+  command: "true"
+
+driver:
+  name: "docker"
+
+platforms:
+  - name: "fail2ban-${MOLECULE_OS:-debian}-${MOLECULE_VERSION:-12}"
+    image: "${MOLECULE_IMAGE:-geerlingguy/docker-debian12-ansible:latest}"
+    volumes:
+      - "/sys/fs/cgroup:/sys/fs/cgroup:rw"
+    privileged: true
+    pre_build_image: true
+    cgroupns_mode: "host"
+    # Empty = run the image's own CMD, which is systemd. Molecule >=26 rejects
+    # an env placeholder with an empty default here, and this file is
+    # interpolated before it is parsed -- so do not write one even in a
+    # comment. Omitting the key entirely lets the driver inject a
+    # non-systemd command, which breaks every service task.
+    command: ""
+
+provisioner:
+  name: "ansible"
+  config_options:
+    defaults:
+      remote_tmp: "/tmp/.ansible-${USER}/tmp/"
+  env:
+    ANSIBLE_ROLES_PATH: "${MOLECULE_PROJECT_DIRECTORY}/..:${HOME}/.ansible/roles"
+
+verifier:
+  name: "testinfra"
+  options:
+    v: true
+
+scenario:
+  test_sequence:
+    - "dependency"
+    - "cleanup"
+    - "destroy"
+    - "syntax"
+    - "create"
+    - "prepare"
+    - "converge"
+    - "idempotence"
+    - "verify"
+    - "cleanup"
+    - "destroy"

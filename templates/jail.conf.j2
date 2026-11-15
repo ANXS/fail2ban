@@ -1,12 +1,12 @@
-# {{ansible_managed}}
+# {{ ansible_managed }}
 
 [DEFAULT]
-bantime = {{fail2ban_bantime}}
-findtime = {{fail2ban_findtime}}
-ignoreip = {{(fail2ban_always_ignore + fail2ban_ignoreip)|join(" ")}}
-maxretry = {{fail2ban_maxretry}}
-backend = {{fail2ban_backend}}
-destemail = {{fail2ban_destemail}}
+bantime = {{ fail2ban_bantime }}
+findtime = {{ fail2ban_findtime }}
+ignoreip = {{ (fail2ban_always_ignore + fail2ban_ignoreip) | unique | join(" ") }}
+maxretry = {{ fail2ban_maxretry }}
+backend = {{ fail2ban_backend }}
+destemail = {{ fail2ban_destemail }}
 banaction = {{ fail2ban_banaction }}
 {% if fail2ban_banaction_allports is defined %}
 banaction_allports = {{ fail2ban_banaction_allports }}
@@ -18,3 +18,11 @@ chain = {{ fail2ban_chain }}
 action = {{ fail2ban_action }}
 {% endif %}
 enabled = false
+
+{% for jail in fail2ban_services %}
+[{{ jail.name }}]
+{% for option in jail | dict2items if option.key != "name" %}
+{{ option.key }} = {% if option.value is boolean %}{{ option.value | ternary("true", "false") }}{% elif option.value is sequence and option.value is not string %}{{ option.value | join(" ") }}{% else %}{{ option.value }}{% endif %}
+{% endfor %}
+
+{% endfor %}

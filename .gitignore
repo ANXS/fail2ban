@@ -6,5 +6,11 @@ Icon
 .Spotlight-V100
 .Trashes
 .vagrant
-test
+.venv
+.cache
+.molecule
+.pytest_cache
+__pycache__
+*.pyc
 .#*
+.ansible

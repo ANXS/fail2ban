@@ -1,72 +1,119 @@
-## ANXS - fail2ban [![Build Status](https://travis-ci.org/ANXS/fail2ban.png)](https://travis-ci.org/ANXS/fail2ban)
+# ANXS.fail2ban
 
-Ansible role which installs and configures fail2ban, a utility that watches logs for failed login attempts and blocks repeat offenders with firewall rules.
+[![Molecule CI](https://github.com/ANXS/fail2ban/actions/workflows/ci.yml/badge.svg)](https://github.com/ANXS/fail2ban/actions/workflows/ci.yml)
 
+Install and configure fail2ban on supported Debian and Ubuntu releases.
 
-#### Requirements & Dependencies
-- Tested on Ansible 1.4 or higher.
+## Requirements
 
+- Ansible 2.14 or newer
+- Debian 12 or 13
+- Ubuntu 20.04, 22.04, or 24.04
 
-#### Variables
+## Usage
 
-- `fail2ban_loglevel` - sets the loglevel output (1 = ERROR, 2 = WARN, 3 = INFO, 4 = DEBUG; default is 3)
-- `fail2ban_logtarget1` - set the log target. This could be a file, SYSLOG, STDERR or STDOUT
-- `fail2ban_syslog_target`
-- `fail2ban_syslog_facility`
-- `fail2ban_socket` - sets the socket file, which is used to communicate with the daemon
+```yaml
+- hosts: servers
+  become: true
+  roles:
+    - role: ANXS.fail2ban
+      fail2ban_bantime: "1h"
+      fail2ban_findtime: "10m"
+      fail2ban_maxretry: 5
+      fail2ban_services:
+        - name: "sshd"
+          enabled: true
+          port: "ssh"
+          filter: "sshd"
+          logpath: "/var/log/auth.log"
+```
 
-- `fail2ban_ignoreip` - which IP address/CIDR mask/DNS host should be ignored from fail2ban's actions
-- `fail2ban_bantime` - sets the bantime
-- `fail2ban_maxretry` - maximum number of retries before the host is put into jail
-- `fail2ban_backend` - specifies the backend used to get files modification
-- `fail2ban_email` - email address which can be used in the interpolation of the `fail2ban_services`
-- `fail2ban_banaction` - sets the global/default banaction (can be overriden on a per role basis)
-- `fail2ban_mta` - email action
-- `fail2ban_protocol` - sets the default protocol
-- `fail2ban_chain` - specifies the chain where jumps would need to be added in iptables-* actions
-- `fail2ban_action` - default action
+Each `fail2ban_services` item requires `name`. Every other key is rendered as
+an option in that jail, so supported fail2ban options do not need corresponding
+role releases.
 
-For each of the services you wish to protect/put a jail or ban up for, you need to add it to the `fail2ban_services` list of hashes:
+Docker-published services usually require jail-specific firewall settings:
 
 ```yaml
 fail2ban_services:
-  - name: "ssh"
-    enabled: "true"
-    port: "ssh"
-    filter: "sshd"
-    logpath: "/var/log/auth.log"
-    maxretry: 6
-    protocol: "tcp"                     (optional)
-    action: "action_ "                  (optional)
-    banaction: "iptables-multiport"     (optional)
+  - name: "proxy-auth"
+    enabled: true
+    filter: "proxy-auth"
+    backend: "systemd"
+    journalmatch: "_SYSTEMD_UNIT=docker.service CONTAINER_TAG=proxy"
+    port: "http,https"
+    banaction: "iptables-multiport"
+    chain: "DOCKER-USER"
 ```
 
-There's a list of [service examples](services_examples.md) to help you.
+See [services_examples.md](services_examples.md) for additional examples.
 
-The optional node_exporter textfile collector is controlled by:
+## Variables
 
-- `fail2ban_textfile_enabled` - installs and schedules the collector
-- `fail2ban_textfile_dir` - node_exporter's runtime textfile directory
-- `fail2ban_textfile_state_dir` - persistent canonical metric storage
-- `fail2ban_textfile_onbootsec` - delay before the first boot refresh
-- `fail2ban_textfile_oncalendar` - recurring systemd timer schedule
-- `fail2ban_textfile_user` - account used to run the collector
+The defaults are documented in [defaults/main.yml](defaults/main.yml). The main
+groups are:
 
-The metric is stored persistently and linked into the runtime collector
-directory. systemd-tmpfiles recreates that link after reboot.
+- package selection: `fail2ban_package_version`
+- global jail defaults: `fail2ban_bantime`, `fail2ban_findtime`,
+  `fail2ban_maxretry`, `fail2ban_backend`, `fail2ban_banaction`
+- daemon paths and database retention: `fail2ban_socket`,
+  `fail2ban_pidfile`, `fail2ban_dbfile`, `fail2ban_dbpurgeage`
+- structured jails: `fail2ban_services`
+- controller-side files: `fail2ban_extra_filters`,
+  `fail2ban_extra_jails`, `fail2ban_extra_configs`
 
+The role records the basenames it deploys under
+`fail2ban_managed_state_dir`. A later run removes recorded files that are no
+longer configured without touching package or operator-owned files.
 
-#### Testing
-This project comes with a VagrantFile, this is a fast and easy way to test changes to the role, fire it up with `vagrant up`
+## Validation
 
-See [vagrant docs](https://docs.vagrantup.com/v2/) for getting setup with vagrant
+Every run:
 
+1. validates each extra filter with `fail2ban-regex`;
+2. checks configured sample lines from `fail2ban_filter_test_lines`; and
+3. runs `fail2ban-client -t` against the assembled configuration before any
+   reload or restart handler runs.
 
-#### License
+For example:
 
-Licensed under the MIT License. See the LICENSE file for details.
+```yaml
+fail2ban_filter_test_lines:
+  proxy-auth: "192.0.2.25 authentication failed"
+```
 
+## Prometheus textfile collector
 
-#### Feedback, bug-reports, requests, ...
+Set `fail2ban_textfile_enabled: true` to install a systemd timer that writes
+metrics atomically for node_exporter's textfile collector.
 
-Are [welcome](https://github.com/ANXS/fail2ban/issues)!
+The node_exporter-owned `fail2ban_textfile_dir` must already exist. Persistent
+metrics live in `fail2ban_textfile_state_dir`; a systemd-tmpfiles rule links
+them into the collector directory after boot.
+
+The schedule is evaluated in `fail2ban_textfile_timezone`, which defaults to
+`UTC`. This matters: a `systemd` calendar spec without a timezone is evaluated
+in local time, and at a DST fall-back it skips the **entire repeated hour**.
+The timer stays `active` and `enabled` throughout, so the only symptom is ~60
+minutes of unchanging metrics — which reads as a dead collector to any
+staleness alert. Pinning the schedule to a zone without DST removes the gap.
+
+Set `fail2ban_textfile_timezone: ""` to evaluate in local wall-clock time
+instead. Do that only if you also widen any staleness alerting past an hour,
+and note that an explicit DST-observing zone (`Europe/Berlin`) is exposed to
+the same stall as local time.
+
+## Development
+
+```console
+make lint
+make test-debian12
+make test
+```
+
+`make test` runs lint plus the Molecule/Testinfra suite on Debian 12/13 and
+Ubuntu 20.04/22.04/24.04. Tags trigger the Ansible Galaxy release workflow.
+
+## License
+
+MIT. See [LICENSE](LICENSE).

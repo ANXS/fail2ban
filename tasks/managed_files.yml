@@ -1,0 +1,85 @@
+---
+- name: "Read ownership manifest"
+  ansible.builtin.stat:
+    path: "{{ fail2ban_managed_state_dir }}/{{ fail2ban_managed_kind }}.list"
+  register: fail2ban_managed_manifest_stat
+
+- name: "Load ownership manifest"
+  ansible.builtin.slurp:
+    path: "{{ fail2ban_managed_state_dir }}/{{ fail2ban_managed_kind }}.list"
+  register: fail2ban_managed_manifest
+  when: fail2ban_managed_manifest_stat.stat.exists
+
+- name: "Resolve managed-file ownership"
+  ansible.builtin.set_fact:
+    # A blank manifest line would resolve to the destination directory itself
+    # in the retirement loop below, so empties are dropped before any path is
+    # built from them.
+    fail2ban_managed_previous_names: >-
+      {{
+        (fail2ban_managed_manifest.content | b64decode).splitlines()
+        | map("trim") | select | list
+        if fail2ban_managed_manifest_stat.stat.exists
+        else []
+      }}
+    fail2ban_managed_desired_names: >-
+      {{ fail2ban_managed_sources | map("basename") | list }}
+
+- name: "Validate unique managed-file names"
+  ansible.builtin.assert:
+    that:
+      - >-
+        fail2ban_managed_desired_names | length
+        ==
+        fail2ban_managed_desired_names | unique | length
+    fail_msg: >-
+      {{ fail2ban_managed_kind }} sources must have unique basenames because
+      they share {{ fail2ban_managed_destination }}.
+    quiet: true
+
+- name: "Remove retired managed files"
+  ansible.builtin.file:
+    path: "{{ fail2ban_managed_destination }}/{{ item }}"
+    state: "absent"
+  loop: >-
+    {{
+      fail2ban_managed_previous_names
+      | difference(fail2ban_managed_desired_names)
+    }}
+  register: fail2ban_managed_removed
+  notify: "{{ fail2ban_managed_handler }}"
+
+- name: "Deploy managed files"
+  ansible.builtin.copy:
+    src: "{{ item }}"
+    dest: "{{ fail2ban_managed_destination }}/{{ item | basename }}"
+    owner: "root"
+    group: "root"
+    mode: "{{ fail2ban_config_mode }}"
+  loop: "{{ fail2ban_managed_sources }}"
+  loop_control:
+    label: "{{ item | basename }}"
+  register: fail2ban_managed_copied
+  notify: "{{ fail2ban_managed_handler }}"
+
+# One name per line, which is the form the reader above parses. A template
+# keeps the separator a real newline: a "\n" written inside a YAML block
+# scalar reaches Jinja as two characters and is never decoded.
+- name: "Write ownership manifest"
+  ansible.builtin.template:
+    src: "managed-files.list.j2"
+    dest: "{{ fail2ban_managed_state_dir }}/{{ fail2ban_managed_kind }}.list"
+    owner: "root"
+    group: "root"
+    mode: "0644"
+
+- name: "Record restart requirement"
+  ansible.builtin.set_fact:
+    fail2ban_restart_required: >-
+      {{
+        fail2ban_restart_required
+        or (
+          fail2ban_managed_restart
+          and (fail2ban_managed_removed.changed or fail2ban_managed_copied.changed)
+        )
+      }}

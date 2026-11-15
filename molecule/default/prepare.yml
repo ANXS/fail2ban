@@ -1,0 +1,60 @@
+---
+- name: "Prepare fail2ban test host"
+  hosts: "all"
+  become: true
+  tasks:
+    - name: "Update apt cache"
+      ansible.builtin.apt:
+        update_cache: true
+        cache_valid_time: 3600
+
+    - name: "Create fixture directories"
+      ansible.builtin.file:
+        path: "{{ item }}"
+        state: "directory"
+        owner: "root"
+        group: "root"
+        mode: "0755"
+      loop:
+        - "/etc/fail2ban/filter.d"
+        - "/var/lib/fail2ban/ansible-managed"
+        - "/opt/prometheus/textfiles"
+
+    - name: "Create test log"
+      ansible.builtin.copy:
+        content: ""
+        dest: "/var/log/test-role.log"
+        owner: "root"
+        group: "root"
+        mode: "0644"
+
+    # The distribution's fail2ban package ships an enabled sshd jail that reads
+    # the system auth log. A bare image has no syslog daemon to create it, so
+    # without this the role's config validation fails on a file real hosts have.
+    - name: "Create the system auth log"
+      ansible.builtin.copy:
+        content: ""
+        dest: "/var/log/auth.log"
+        force: false
+        owner: "root"
+        group: "root"
+        mode: "0640"
+
+    - name: "Create retired managed filter"
+      ansible.builtin.copy:
+        content: |
+          [Definition]
+          failregex = ^<HOST> retired failure$
+        dest: "/etc/fail2ban/filter.d/retired.conf"
+        owner: "root"
+        group: "root"
+        mode: "0644"
+
+    - name: "Seed retired filter ownership"
+      ansible.builtin.copy:
+        content: |
+          retired.conf
+        dest: "/var/lib/fail2ban/ansible-managed/filters.list"
+        owner: "root"
+        group: "root"
+        mode: "0644"
