@@ -1,30 +1,160 @@
 ---
-- name: "Make sure fail2ban is installed"
-  apt:
-    pkg: "fail2ban"
-    state: "latest"
+- name: "Validate fail2ban jail definitions"
+  ansible.builtin.assert:
+    that:
+      - item is mapping
+      - item.name is defined
+      - item.name | string | length > 0
+    fail_msg: >-
+      Each fail2ban_services item must be a mapping with a non-empty name.
+    quiet: true
+  loop: "{{ fail2ban_services }}"
+  loop_control:
+    label: "{{ item.name | default('unnamed') }}"
 
-- name: "Make sure the fail2ban configuration is up to date"
-  template:
+- name: "Validate unique fail2ban jail names"
+  ansible.builtin.assert:
+    that:
+      - >-
+        fail2ban_services | map(attribute="name") | list | length
+        ==
+        fail2ban_services | map(attribute="name") | list | unique | length
+    fail_msg: "fail2ban_services names must be unique."
+    quiet: true
+
+- name: "Install fail2ban"
+  ansible.builtin.apt:
+    pkg:
+      - >-
+        {{
+          "fail2ban=" ~ fail2ban_package_version
+          if fail2ban_package_version | length > 0
+          else "fail2ban"
+        }}
+      - "python3-systemd"
+    state: "present"
+
+- name: "Initialize fail2ban service change state"
+  ansible.builtin.set_fact:
+    fail2ban_restart_required: false
+
+- name: "Deploy fail2ban.conf"
+  ansible.builtin.template:
     src: "fail2ban.conf.j2"
-    dest: "/etc/fail2ban/fail2ban.conf"
+    dest: "{{ fail2ban_config_dir }}/fail2ban.conf"
     owner: "root"
     group: "root"
-    mode: "0644"
-  notify:
-    - "restart fail2ban"
+    mode: "{{ fail2ban_config_mode }}"
+  register: fail2ban_main_config
+  notify: "restart fail2ban"
 
-- name: "Generate fail2ban jail dot local"
-  template:
+- name: "Record daemon configuration changes"
+  ansible.builtin.set_fact:
+    fail2ban_restart_required: >-
+      {{ fail2ban_restart_required or fail2ban_main_config.changed }}
+
+- name: "Deploy jail.local"
+  ansible.builtin.template:
     src: "jail.conf.j2"
-    dest: "/etc/fail2ban/jail.local"
+    dest: "{{ fail2ban_config_dir }}/jail.local"
     owner: "root"
     group: "root"
-    mode: "0644"
-  notify:
-    - "restart fail2ban"
+    mode: "{{ fail2ban_config_mode }}"
+  notify: "reload fail2ban"
 
-- name: "Make sure fail2ban is enabled"
-  service:
+- name: "Create managed-file state directory"
+  ansible.builtin.file:
+    path: "{{ fail2ban_managed_state_dir }}"
+    state: "directory"
+    owner: "root"
+    group: "root"
+    mode: "0755"
+
+- name: "Manage extra filters"
+  ansible.builtin.include_tasks: "managed_files.yml"
+  vars:
+    fail2ban_managed_kind: "filters"
+    fail2ban_managed_sources: "{{ fail2ban_extra_filters }}"
+    fail2ban_managed_destination: "{{ fail2ban_config_dir }}/filter.d"
+    fail2ban_managed_handler: "reload fail2ban"
+    fail2ban_managed_restart: false
+
+- name: "Manage extra jail configs"
+  ansible.builtin.include_tasks: "managed_files.yml"
+  vars:
+    fail2ban_managed_kind: "jails"
+    fail2ban_managed_sources: "{{ fail2ban_extra_jails }}"
+    fail2ban_managed_destination: "{{ fail2ban_config_dir }}/jail.d"
+    fail2ban_managed_handler: "reload fail2ban"
+    fail2ban_managed_restart: false
+
+- name: "Manage extra fail2ban configs"
+  ansible.builtin.include_tasks: "managed_files.yml"
+  vars:
+    fail2ban_managed_kind: "configs"
+    fail2ban_managed_sources: "{{ fail2ban_extra_configs }}"
+    fail2ban_managed_destination: "{{ fail2ban_config_dir }}/fail2ban.d"
+    fail2ban_managed_handler: "restart fail2ban"
+    fail2ban_managed_restart: true
+
+- name: "Validate extra filter syntax"
+  ansible.builtin.command:
+    argv:
+      - "fail2ban-regex"
+      - "/dev/null"
+      - "{{ fail2ban_config_dir }}/filter.d/{{ item | basename }}"
+  loop: "{{ fail2ban_extra_filters }}"
+  loop_control:
+    label: "{{ item | basename }}"
+  register: fail2ban_filter_syntax
+  changed_when: false
+  failed_when: fail2ban_filter_syntax.rc > 1
+
+# Keep the regex escape single. A backslash inside a YAML block scalar reaches
+# Jinja unchanged, so a doubled one matches a literal backslash rather than a
+# dot, leaving every name suffixed and silently skipping the check below.
+- name: "Resolve deployed filter names"
+  ansible.builtin.set_fact:
+    fail2ban_deployed_filter_names: >-
+      {{
+        fail2ban_extra_filters
+        | map("basename")
+        | map("regex_replace", "\.conf$", "")
+        | list
+      }}
+
+- name: "Validate filters against sample log lines"
+  ansible.builtin.command:
+    argv:
+      - "fail2ban-regex"
+      - "{{ item.value }}"
+      - "{{ fail2ban_config_dir }}/filter.d/{{ item.key }}.conf"
+  loop: "{{ fail2ban_filter_test_lines | dict2items }}"
+  loop_control:
+    label: "{{ item.key }}"
+  register: fail2ban_filter_match
+  changed_when: false
+  failed_when: fail2ban_filter_match.rc != 0
+  when: item.key in fail2ban_deployed_filter_names
+
+- name: "Validate assembled fail2ban configuration"
+  ansible.builtin.command:
+    argv:
+      - "fail2ban-client"
+      - "-t"
+  changed_when: false
+
+- name: "Ensure fail2ban is running"
+  ansible.builtin.service:
     name: "fail2ban"
+    state: "started"
     enabled: true
+  register: fail2ban_started
+
+- name: "Deploy Prometheus textfile collector"
+  ansible.builtin.include_tasks: "textfile.yml"
+  when: fail2ban_textfile_enabled
+
+- name: "Remove Prometheus textfile collector"
+  ansible.builtin.include_tasks: "textfile_teardown.yml"
+  when: not fail2ban_textfile_enabled

@@ -1,5 +1,16 @@
 ---
-- name: "restart fail2ban"
-  service:
-    name: fail2ban
-    state: restarted
+- name: "Reload fail2ban"
+  ansible.builtin.service:
+    name: "fail2ban"
+    state: "reloaded"
+  listen: "reload fail2ban"
+  when:
+    - not (fail2ban_started.changed | default(false))
+    - not (fail2ban_restart_required | default(false))
+
+- name: "Restart fail2ban"
+  ansible.builtin.service:
+    name: "fail2ban"
+    state: "restarted"
+  listen: "restart fail2ban"
+  when: not (fail2ban_started.changed | default(false))

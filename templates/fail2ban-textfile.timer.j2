@@ -1,0 +1,13 @@
+# {{ ansible_managed }}
+[Unit]
+Description=run fail2ban prometheus textfile collector on schedule
+
+[Timer]
+OnBootSec={{ fail2ban_textfile_onbootsec }}
+OnCalendar={{ fail2ban_textfile_oncalendar }}{{ ' ' ~ fail2ban_textfile_timezone if fail2ban_textfile_timezone | default('', true) else '' }}
+AccuracySec=10s
+Persistent=true
+Unit=fail2ban-textfile.service
+
+[Install]
+WantedBy=timers.target

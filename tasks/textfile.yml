@@ -1,0 +1,142 @@
+---
+- name: "Validate textfile collector paths"
+  ansible.builtin.assert:
+    that:
+      - fail2ban_textfile_state_dir is match("^/")
+      - not (fail2ban_textfile_state_dir is match("^/etc(?:/|$)"))
+      - not (fail2ban_textfile_state_dir is match("^/(?:var/)?run(?:/|$)"))
+    fail_msg: >-
+      fail2ban_textfile_state_dir must be an absolute persistent application
+      state path, not configuration or a runtime filesystem.
+    quiet: true
+
+- name: "Inspect node_exporter textfile directory"
+  ansible.builtin.stat:
+    path: "{{ fail2ban_textfile_dir }}"
+  register: fail2ban_textfile_target
+
+- name: "Require node_exporter textfile directory"
+  ansible.builtin.assert:
+    that:
+      - fail2ban_textfile_target.stat.exists
+      - fail2ban_textfile_target.stat.isdir
+    fail_msg: >-
+      fail2ban_textfile_dir must already exist; the node_exporter owner should
+      create its collector directory.
+    quiet: true
+
+- name: "Create collector script directory"
+  ansible.builtin.file:
+    path: "/opt/fail2ban-exporter"
+    state: "directory"
+    owner: "root"
+    group: "root"
+    mode: "0755"
+
+- name: "Create persistent metrics directory"
+  ansible.builtin.file:
+    path: "{{ fail2ban_textfile_state_dir }}"
+    state: "directory"
+    owner: "root"
+    group: "root"
+    mode: "0755"
+
+- name: "Deploy fail2ban textfile collector script"
+  ansible.builtin.template:
+    src: "fail2ban-textfile.sh.j2"
+    dest: "/opt/fail2ban-exporter/fail2ban-textfile.sh"
+    owner: "root"
+    group: "root"
+    mode: "0755"
+  register: fail2ban_textfile_script
+
+- name: "Install fail2ban metric boot link"
+  ansible.builtin.template:
+    src: "fail2ban-prometheus.conf.j2"
+    dest: "/etc/tmpfiles.d/fail2ban-prometheus.conf"
+    owner: "root"
+    group: "root"
+    mode: "0644"
+
+- name: "Link fail2ban metrics into the collector"
+  ansible.builtin.file:
+    src: "{{ fail2ban_textfile_state_dir }}/fail2ban.prom"
+    dest: "{{ fail2ban_textfile_dir }}/fail2ban.prom"
+    state: "link"
+    force: true
+
+- name: "Inspect persistent fail2ban metric"
+  ansible.builtin.stat:
+    path: "{{ fail2ban_textfile_state_dir }}/fail2ban.prom"
+  register: fail2ban_textfile_metric
+
+- name: "Deploy fail2ban textfile systemd service"
+  ansible.builtin.template:
+    src: "fail2ban-textfile.service.j2"
+    dest: "/etc/systemd/system/fail2ban-textfile.service"
+    owner: "root"
+    group: "root"
+    mode: "0644"
+  register: fail2ban_textfile_service
+
+- name: "Deploy fail2ban textfile systemd timer"
+  ansible.builtin.template:
+    src: "fail2ban-textfile.timer.j2"
+    dest: "/etc/systemd/system/fail2ban-textfile.timer"
+    owner: "root"
+    group: "root"
+    mode: "0644"
+  register: fail2ban_textfile_timer
+
+- name: "Reload systemd for changed textfile units"
+  ansible.builtin.systemd_service:
+    daemon_reload: true
+  when: fail2ban_textfile_service.changed or fail2ban_textfile_timer.changed
+
+- name: "Publish initial fail2ban metrics"
+  ansible.builtin.systemd_service:
+    name: "fail2ban-textfile.service"
+    state: "started"
+  when: >-
+    (not fail2ban_textfile_metric.stat.exists)
+    or fail2ban_textfile_script.changed
+    or fail2ban_textfile_service.changed
+
+- name: "Enable and start fail2ban textfile timer"
+  ansible.builtin.systemd_service:
+    name: "fail2ban-textfile.timer"
+    enabled: true
+    state: "started"
+
+- name: "Restart fail2ban textfile timer for unit changes"
+  ansible.builtin.systemd_service:
+    name: "fail2ban-textfile.timer"
+    state: "restarted"
+  when: fail2ban_textfile_service.changed or fail2ban_textfile_timer.changed
+
+- name: "Inspect crontab binary"
+  ansible.builtin.stat:
+    path: "/usr/bin/crontab"
+  register: fail2ban_textfile_crontab
+
+- name: "Read legacy crontab"
+  ansible.builtin.command:
+    argv:
+      - "crontab"
+      - "-l"
+      - "-u"
+      - "{{ fail2ban_textfile_legacy_cron_user }}"
+  register: fail2ban_textfile_crontab_list
+  changed_when: false
+  failed_when: false
+  when: fail2ban_textfile_crontab.stat.exists
+
+# Legacy cleanup for hosts upgraded from a cron-based collector. Gate on a
+# readable crontab, not just the binary: with no crontab there is nothing to
+# remove, and the cron module raises a hard error instead of reporting that.
+- name: "Remove legacy cron entry"
+  ansible.builtin.cron:
+    name: "fail2ban prometheus textfile collector"
+    user: "{{ fail2ban_textfile_legacy_cron_user }}"
+    state: "absent"
+  when: fail2ban_textfile_crontab_list.rc | default(1) == 0

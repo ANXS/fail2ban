@@ -1,16 +1,26 @@
-# file: fail2ban/meta/main.yml
-
+---
 galaxy_info:
-  author: pjan vandaele
-  company: ANXS
-  description: Install and configure fail2ban
-  min_ansible_version: 1.4
-  license: MIT
+  namespace: "anxs"
+  role_name: "fail2ban"
+  author: "ANXS Crew"
+  company: "ANXS"
+  description: "Install and configure fail2ban with managed jails and filters"
+  license: "MIT"
+  min_ansible_version: "2.14"
   platforms:
-  - name: Ubuntu
-    versions:
-    - all
+    - name: "Debian"
+      versions:
+        - "bookworm"
+        - "trixie"
+    - name: "Ubuntu"
+      versions:
+        - "focal"
+        - "jammy"
+        - "noble"
   galaxy_tags:
-  - system
+    - "fail2ban"
+    - "firewall"
+    - "security"
+    - "system"
 
 dependencies: []

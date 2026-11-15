@@ -1,0 +1,28 @@
+---
+- name: "Converge fail2ban role"
+  hosts: "all"
+  become: true
+  roles:
+    - role: "{{ lookup('env', 'MOLECULE_PROJECT_DIRECTORY') | basename }}"
+      vars:
+        fail2ban_bantime: "10m"
+        fail2ban_findtime: "1m"
+        fail2ban_maxretry: 1
+        fail2ban_services:
+          - name: "structured-service"
+            enabled: false
+            filter: "test-role"
+            logpath: "/var/log/test-role.log"
+            backend: "polling"
+            banaction: "dummy"
+            chain: "DOCKER-USER"
+            port: "443"
+        fail2ban_extra_filters:
+          - >-
+            {{ lookup("env", "MOLECULE_SCENARIO_DIRECTORY") }}/files/test-role.conf
+        fail2ban_extra_jails:
+          - >-
+            {{ lookup("env", "MOLECULE_SCENARIO_DIRECTORY") }}/files/test-role-jail.conf
+        fail2ban_filter_test_lines:
+          test-role: "192.0.2.50 test failure"
+        fail2ban_textfile_enabled: true
